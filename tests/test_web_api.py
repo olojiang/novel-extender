@@ -1,0 +1,70 @@
+from conftest import FakeEmbeddingClient, FakeStore
+
+from novel_extender.run_logging import JsonlRunLogger
+from novel_extender.web_api import PrepareFileRequest, _append_generated_chapter, _collection_name, _prepare_file
+
+
+def test_prepare_file_uses_ascii_chroma_collection_for_chinese_filename():
+    result = _prepare_file(
+        PrepareFileRequest(
+            filename="火影-我对开启宫不感兴趣.txt",
+            text="第1章 开端\n正文。",
+        )
+    )
+
+    assert result["collection"].endswith("_chapters")
+    assert result["collection"].isascii()
+    assert "火影" not in result["collection"]
+    assert result["chapterCount"] == 1
+
+
+def test_collection_name_normalizes_legacy_invalid_values():
+    collection = _collection_name("火影-我对开启宫不感兴趣_chapters")
+
+    assert collection.endswith("_chapters")
+    assert collection.isascii()
+    assert len(collection) >= 3
+
+
+def test_append_generated_chapter_adds_output_to_novel_and_memory(tmp_path):
+    novel_path = tmp_path / "novel.txt"
+    novel_path.write_text("第1章 开端\n第一章正文。\n\n第2章 线索\n第二章正文。", encoding="utf-8")
+    store = FakeStore()
+    run_logger = JsonlRunLogger(log_dir=tmp_path / "logs")
+
+    result = _append_generated_chapter(
+        novel_path=novel_path,
+        text="第3章 新线索\n生成正文。",
+        mode="continuation",
+        embeddings=FakeEmbeddingClient(),
+        store=store,
+        run_logger=run_logger,
+        update_memory=True,
+    )
+
+    assert result["chapterCount"] == 3
+    assert result["appendedChapter"]["title"] == "第3章 新线索"
+    assert "第3章 新线索\n生成正文。" in novel_path.read_text(encoding="utf-8")
+    chapters, embeddings = store.upserted[-1]
+    assert chapters[0].chapter_id == "novel-ch003"
+    assert embeddings == [[0.0, 0.1]]
+
+
+def test_append_generated_chapter_adds_heading_when_output_has_no_heading(tmp_path):
+    novel_path = tmp_path / "novel.txt"
+    novel_path.write_text("第1章 开端\n第一章正文。", encoding="utf-8")
+    run_logger = JsonlRunLogger(log_dir=tmp_path / "logs")
+
+    result = _append_generated_chapter(
+        novel_path=novel_path,
+        text="生成正文。",
+        mode="continuation",
+        embeddings=FakeEmbeddingClient(),
+        store=FakeStore(),
+        run_logger=run_logger,
+        update_memory=False,
+    )
+
+    assert result["chapterCount"] == 2
+    assert result["appendedChapter"]["title"] == "第2章 续写"
+    assert "第2章 续写\n生成正文。" in novel_path.read_text(encoding="utf-8")
