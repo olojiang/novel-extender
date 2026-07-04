@@ -71,7 +71,9 @@ def is_local_base_url(base_url: str) -> bool:
     except ValueError:
         return False
 
-    return address.is_loopback or address.is_private or address.is_link_local
+    if address.is_link_local:
+        return False
+    return address.is_loopback or address.is_private
 
 
 def validate_openai_compat(

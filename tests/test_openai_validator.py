@@ -112,3 +112,7 @@ def test_identifies_local_and_private_model_endpoints():
     assert is_local_base_url("http://192.168.1.10:1234/v1")
     assert is_local_base_url("http://modelbox.local:1234/v1")
     assert not is_local_base_url("https://api.openai.com/v1")
+
+
+def test_rejects_link_local_metadata_ip():
+    assert not is_local_base_url("http://169.254.169.254/v1")

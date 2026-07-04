@@ -1,7 +1,16 @@
+from types import SimpleNamespace
+
 from conftest import FakeEmbeddingClient, FakeStore
 
+from novel_extender import web_api
 from novel_extender.run_logging import JsonlRunLogger
-from novel_extender.web_api import PrepareFileRequest, _append_generated_chapter, _collection_name, _prepare_file
+from novel_extender.web_api import (
+    GenerateSeriesRequest,
+    PrepareFileRequest,
+    _append_generated_chapter,
+    _collection_name,
+    _prepare_file,
+)
 
 
 def test_prepare_file_uses_ascii_chroma_collection_for_chinese_filename():
@@ -68,3 +77,45 @@ def test_append_generated_chapter_adds_heading_when_output_has_no_heading(tmp_pa
     assert result["chapterCount"] == 2
     assert result["appendedChapter"]["title"] == "第2章 续写"
     assert "第2章 续写\n生成正文。" in novel_path.read_text(encoding="utf-8")
+
+
+def test_generate_series_returns_the_combined_prompt(monkeypatch, tmp_path):
+    prompts_seen: list[str] = []
+
+    class FakeChat:
+        def __init__(self, **_kwargs):
+            pass
+
+    def fake_clients(*_args, **_kwargs):
+        return {"embedding": FakeEmbeddingClient(), "store": FakeStore()}
+
+    def fake_generate_from_novel(*_args, **_kwargs):
+        index = len(prompts_seen) + 1
+        prompts_seen.append(f"prompt {index}")
+        return SimpleNamespace(
+            text=f"第{index + 1}章 续写\n生成正文。",
+            prompt=f"prompt {index}",
+            recent_chapter_ids=(f"novel-ch{index:03d}",),
+            retrieved_chapter_ids=("novel-ch001",),
+            post_check=SimpleNamespace(ok=True, issues=()),
+            memory_updated=False,
+        )
+
+    monkeypatch.setattr(web_api, "_embedding_and_store_from", fake_clients)
+    monkeypatch.setattr(web_api, "OpenAIChatClient", FakeChat)
+    monkeypatch.setattr(web_api, "generate_from_novel", fake_generate_from_novel)
+
+    prompt_output_path = tmp_path / "prompts.txt"
+    result = web_api._generate_series(
+        GenerateSeriesRequest(
+            novelPath=str(tmp_path / "novel.txt"),
+            request="续写两章。",
+            chapterBatchSize=2,
+            appendToNovel=False,
+            promptOutputPath=str(prompt_output_path),
+        )
+    )
+
+    assert f"{result['prompt']}\n" == prompt_output_path.read_text(encoding="utf-8")
+    assert "===== chapter 1 prompt =====\nprompt 1" in result["prompt"]
+    assert "===== chapter 2 prompt =====\nprompt 2" in result["prompt"]

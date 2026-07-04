@@ -87,7 +87,7 @@ def ingest_novel(
     max_chunk_chars: int = DEFAULT_MAX_CHUNK_CHARS,
     overlap_chars: int = DEFAULT_OVERLAP_CHARS,
 ) -> IngestResult:
-    path = Path(novel_path)
+    path = Path(novel_path).resolve()
     logger.event("ingest", "started", source_path=str(path))
     text = path.read_text(encoding="utf-8")
 
@@ -133,7 +133,7 @@ def generate_from_novel(
         max_tokens=max_tokens,
         prompt_char_budget=prompt_char_budget,
     )
-    path = Path(novel_path)
+    path = Path(novel_path).resolve()
     logger.event("generate", "started", source_path=str(path), mode=mode)
     text = path.read_text(encoding="utf-8")
 

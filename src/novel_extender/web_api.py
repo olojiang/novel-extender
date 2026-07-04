@@ -523,7 +523,7 @@ def _generate_series(body: GenerateSeriesRequest) -> dict[str, Any]:
         all_issues.extend(item["postCheck"]["issues"])
     return {
         "text": combined_text,
-        "prompt": last["prompt"],
+        "prompt": combined_prompt,
         "recentChapterIds": last["recentChapterIds"],
         "retrievedChapterIds": last["retrievedChapterIds"],
         "postCheck": {"ok": all_ok, "issues": all_issues},
@@ -559,14 +559,14 @@ def _append_generated_chapter(
         novel_path.parent.mkdir(parents=True, exist_ok=True)
         novel_path.write_text(combined, encoding="utf-8")
 
-    after_chapters = split_chapters(combined, source_path=str(novel_path))
-    if not after_chapters:
-        raise ValueError("append did not produce a readable chapter")
-    appended = after_chapters[-1]
-    memory_updated = False
-    if update_memory:
-        store.upsert_chapters([appended], embeddings.embed_texts([appended.text]))
-        memory_updated = True
+        after_chapters = split_chapters(combined, source_path=str(novel_path))
+        if not after_chapters:
+            raise ValueError("append did not produce a readable chapter")
+        appended = after_chapters[-1]
+        memory_updated = False
+        if update_memory:
+            store.upsert_chapters([appended], embeddings.embed_texts([appended.text]))
+            memory_updated = True
     run_logger.event(
         "append",
         "completed",

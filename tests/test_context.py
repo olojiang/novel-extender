@@ -1,3 +1,5 @@
+import pytest
+
 from novel_extender.chapters import Chapter
 from novel_extender.context import RetrievedChapter, build_continuation_context
 
@@ -71,3 +73,14 @@ def test_build_continuation_context_deduplicates_recent_retrieved_chapters():
     assert context.recent_chapter_ids == ("novel-ch002",)
     assert context.retrieved_chapter_ids == ("novel-ch001",)
     assert context.prompt.count("第2章 线索") == 1
+
+
+def test_build_continuation_context_rejects_unknown_mode():
+    chapters = [Chapter("novel-ch001", 1, "第1章 开端", "正文", "novel.txt")]
+    with pytest.raises(ValueError, match="Unknown mode"):
+        build_continuation_context(
+            user_request="续写。",
+            chapters=chapters,
+            retrieved=[],
+            mode="invalid_mode",
+        )

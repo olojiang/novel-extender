@@ -31,6 +31,9 @@ def build_continuation_context(
     mode: str = "continuation",
     prompt_char_budget: int | None = None,
 ) -> ContinuationContext:
+    _VALID_MODES = {"analysis", "rewrite", "continuation"}
+    if mode not in _VALID_MODES:
+        raise ValueError(f"Unknown mode {mode!r}, expected one of {sorted(_VALID_MODES)}")
     recent = chapters[-recent_count:] if recent_count > 0 else []
     recent_ids = {chapter.chapter_id for chapter in recent}
     retrieved = _dedupe_retrieved(retrieved, excluded_ids=recent_ids)
@@ -38,7 +41,7 @@ def build_continuation_context(
         "analysis": "分析要求",
         "rewrite": "改写要求",
         "continuation": "续写要求",
-    }.get(mode, "任务要求")
+    }[mode]
     generation_steps = {
         "analysis": (
             "【分析流程】\n"
@@ -58,15 +61,7 @@ def build_continuation_context(
             "2. 再根据大纲生成正文。\n"
             "3. 不改写既有人物关系，不提前揭示未揭示伏笔。"
         ),
-    }.get(
-        mode,
-        (
-            "【处理流程】\n"
-            "1. 先整理与任务相关的已有事实。\n"
-            "2. 再按任务要求输出结果。\n"
-            "3. 保持剧情、人物、设定、时间线和伏笔一致。"
-        ),
-    )
+    }[mode]
     prompt, truncated = _build_prompt(
         mode=mode,
         request_label=request_label,

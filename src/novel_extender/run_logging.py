@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -18,13 +18,13 @@ class JsonlRunLogger:
 
     def event(self, stage: str, event: str, **fields: Any) -> None:
         payload = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).astimezone().isoformat(),
             "run_id": self.run_id,
             "stage": stage,
             "event": event,
             **fields,
         }
-        line = json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n"
+        line = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str) + "\n"
         with self._lock, self.path.open("a", encoding="utf-8") as handle:
             handle.write(line)
 
