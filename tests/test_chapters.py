@@ -130,3 +130,9 @@ def test_split_into_chunks_falls_back_to_sentence_split_for_single_paragraph():
     assert len(chunks) > 1
     for chunk in chunks:
         assert chunk.source_path == "mono.txt"
+
+
+def test_split_into_chunks_passes_through_when_max_chars_zero_or_negative():
+    chapters = split_chapters("第1章 短章\n一句话。", source_path="test.txt")
+    assert split_into_chunks(chapters, max_chunk_chars=0, overlap_chars=0) == chapters
+    assert split_into_chunks(chapters, max_chunk_chars=-1, overlap_chars=0) == chapters

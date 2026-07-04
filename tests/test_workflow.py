@@ -172,3 +172,13 @@ def test_generate_from_novel_rejects_empty_generated_text(tmp_path):
             chat=EmptyChatClient(),
             logger=FakeLogger(),
         )
+
+
+def test_ingest_resolves_source_path(tmp_path):
+    novel = tmp_path / "subdir" / "novel.txt"
+    novel.parent.mkdir(parents=True)
+    novel.write_text("第1章 测试\n正文。", encoding="utf-8")
+    store = FakeStore()
+    logger = FakeLogger()
+    result = ingest_novel(str(novel), FakeEmbeddingClient(), store, logger)
+    assert str(novel.resolve()) in result.source_path

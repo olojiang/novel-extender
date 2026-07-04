@@ -195,6 +195,16 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
             content={"ok": False, "error": "Internal server error"},
         )
 
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):  # type: ignore[no-untyped-def]
+        import time
+        start = time.monotonic()
+        response = await call_next(request)
+        elapsed = round((time.monotonic() - start) * 1000)
+        if request.url.path.startswith("/api/"):
+            logger.info("%s %s -> %d (%dms)", request.method, request.url.path, response.status_code, elapsed)
+        return response
+
     # ----- GET endpoints (no blocking I/O → async is fine) -----
 
     @app.get("/api/health")
@@ -684,6 +694,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--static-dir", default=str(PROJECT_ROOT / "web" / "dist"))
     args = parser.parse_args(argv)
 
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     app = create_app(static_dir=Path(args.static_dir))
     print(f"novel-extender web API listening on http://{args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
